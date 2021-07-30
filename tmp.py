@@ -1,9 +1,8 @@
-
 '''
 
-main.py
+tmp.py
 
-python3 main.py LWSA3 rectangle
+python3 tmp.py LWSA3 rectangle
 
 '''
 
@@ -16,8 +15,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-from datetime import datetime
-
 ticker = sys.argv[1]
 figure = sys.argv[2]
 
@@ -29,37 +26,36 @@ timeseries = json.load(input_file)
 input_file.close()
 
 df = pd.DataFrame(timeseries)
-x = np.arange(0, len(df))
 
 df['date']  = pd.to_datetime(df['date'])
 df["low"]   = pd.to_numeric(df["low"])
 df["high"]  = pd.to_numeric(df["high"])
 df["open"]  = pd.to_numeric(df["open"])
 df["close"] = pd.to_numeric(df["close"])
-df["volume"] = pd.to_numeric(df["volume"])
 
-# Compute the volume 7-day moving average.
+# Plot the Open-high-low-close chart.
 
-volume_values = []
-volume_moving_average = []
+figure, axes = plt.subplots(1, figsize=(12, 6))
 
 for i, session in df.iterrows():
 
-    volume  = session['volume']
+    open    = session['open']
+    high    = session['high']
+    low     = session['low']
+    close   = session['close']
+    color   = '#2CA453' if close > open else '#F04730'
 
-    volume_values.append(volume)
-
-    d = 7 if len(volume_values) >= 7 else len(volume_values)
-    v = volume_values[-7:]
-    s = sum(v)
-
-    volume_moving_average.append(s / d)
+    plt.plot([i, i], [low, high], color=color)
+    plt.plot([i, (i - 0.1)], [open, open], color=color)
+    plt.plot([i, (i + 0.1)], [close, close], color=color)
 
 # Discover rectangles.
 
 rectangles = []
 
 for i, session in df.iterrows():
+
+    #if i != 3: continue
 
     diff_threshold = 0.0075
     support_hits = 1
@@ -105,69 +101,13 @@ for i, session in df.iterrows():
             resistance_hits = 1
             resistance = high
 
-# Plot the Open-high-low-close chart with volumes.
+# Show the chart.
 
-dates_index = []
-dates_labels = []
+plt.show(block=False)
 
-grid_specs = {
-    'height_ratios': [4, 1],
-    'hspace':0
-    }
+# Plot rectangles.
 
-figure, (pri_ax, vol_ax) = plt.subplots(
-    nrows=2,
-    ncols=1,
-    figsize=(10, 6),
-    gridspec_kw=grid_specs
-    )
-
-for i, session in df.iterrows():
-
-    date    = session['date']
-    open    = session['open']
-    high    = session['high']
-    low     = session['low']
-    close   = session['close']
-    volume  = session['volume']
-
-    b_color = '#2CA453' if close > open else '#F04730'
-    v_color = 'lightgrey'
-
-    pri_ax.plot([i, i], [low, high], color=b_color)
-    pri_ax.plot([i, (i - 0.1)], [open, open], color=b_color)
-    pri_ax.plot([i, (i + 0.1)], [close, close], color=b_color)
-
-    vol_ax.plot([i, i], [0, volume], linewidth=8, color=v_color)
-
-    if len(dates_index) == 0 or i == (len(df) - 1):
-
-        dates_index.append(i)
-        dates_labels.append(date.strftime("%m/%Y"))
-
-    elif i - dates_index[-1] > 3:
-
-        dates_index.append(i)
-        dates_labels.append(date.strftime("%d"))
-
-max_volume = df['volume'].max() * 1.1
-volume_y_ticks = np.arange(0, (max_volume + 1), (max_volume / 4))
-volume_y_labels = ['{:.2f} mi'.format(i/1000000) for i in volume_y_ticks]
-
-vol_ax.set_xticks(dates_index)
-vol_ax.set_xticklabels(dates_labels)
-
-vol_ax.plot(x, volume_moving_average, linewidth=1, color='orange')
-
-plt.yticks(volume_y_ticks[1:-1], volume_y_labels[1:-1])
-plt.ylim(0, max_volume)
-
-# Show the chart (doesn't block the program).
-
-plt.show(block=True)
-exit()
-
-# Plot rectangles (on keypress, draw next rectangle).
+#rectangles.append([7, 35, 25, 28.15])
 
 for r in rectangles:
 
@@ -189,5 +129,3 @@ for r in rectangles:
     b.remove()
     c.remove()
     d.remove()
-
-    break
