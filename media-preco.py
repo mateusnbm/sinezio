@@ -1,9 +1,9 @@
 
 '''
 
-main.py
+media-preco.py
 
-python3 main.py LWSA3 rectangle
+python3 media-preco.py
 
 '''
 
@@ -18,42 +18,73 @@ import matplotlib.patches as patches
 
 from datetime import datetime
 
-ticker = sys.argv[1]
-figure = sys.argv[2]
+tickers = ['PETR4']
 
-# Load company trading sessions dataset.
+for ticker in tickers:
 
-input_path = './data/' + ticker + '.json'
-input_file = open(input_path, 'r')
-timeseries = json.load(input_file)
-input_file.close()
+    # Carregar e transformar os dados do ativo.
 
-df = pd.DataFrame(timeseries)
-x = np.arange(0, len(df))
+    input_path = './data/' + ticker + '.json'
+    input_file = open(input_path, 'r')
+    timeseries = json.load(input_file)
+    input_file.close()
 
-df['date']  = pd.to_datetime(df['date'])
-df["low"]   = pd.to_numeric(df["low"])
-df["high"]  = pd.to_numeric(df["high"])
-df["open"]  = pd.to_numeric(df["open"])
-df["close"] = pd.to_numeric(df["close"])
-df["volume"] = pd.to_numeric(df["volume"])
+    df = pd.DataFrame(timeseries)
 
-# Compute the volume 7-day moving average.
+    df["close"] = pd.to_numeric(df["close"])
 
-volume_values = []
-volume_moving_average = []
+    # Calcular as médias móveis de 7, 14 e 21 dias.
 
-for i, session in df.iterrows():
+    moving_averages = {}
+    moving_averages[7] = []
+    moving_averages[14] = []
+    moving_averages[21] = []
 
-    volume  = session['volume']
+    for length in moving_averages.keys():
 
-    volume_values.append(volume)
+        for i, session in df.iterrows():
 
-    d = 7 if len(volume_values) >= 7 else len(volume_values)
-    v = volume_values[-7:]
-    s = sum(v)
+            close = session['close']
 
-    volume_moving_average.append(s / d)
+            d = length if i >= length else (i + 1)
+            v = df.iloc[(i-d+1):(i+1)]['close'].tolist()
+            s = sum(v)
+
+            moving_averages[length].append(s / d)
+
+    # Determinar os pontos de cruzamento e, consequentemente, as operações.
+
+    for i, session in df.iterrows():
+
+        if i == 0: continue
+
+        date = session['date']
+        current_close = session['close']
+        previous_close = df.iloc[i-1]['close']
+
+        print(date)
+        print('')
+
+        for length in [7]:# moving_averages.keys():
+
+            current_ma = moving_averages[length][i]
+            previous_ma = moving_averages[length][i-1]
+
+            if previous_ma > previous_close and current_close > current_ma:
+
+                # O preço cruzou a média móvel para cima.
+
+                print('Cruzamento para cima.')
+                print(date)
+                print('')
+
+            elif previous_close > previous_ma and current_ma > current_close:
+
+                print('Cruzamento para baixo')
+                print(date)
+                print('')
+
+exit()
 
 # Discover rectangles.
 
@@ -118,7 +149,7 @@ grid_specs = {
 figure, (pri_ax, vol_ax) = plt.subplots(
     nrows=2,
     ncols=1,
-    figsize=(10, 6),
+    figsize=(12, 6),
     gridspec_kw=grid_specs
     )
 
@@ -134,9 +165,9 @@ for i, session in df.iterrows():
     b_color = '#2CA453' if close > open else '#F04730'
     v_color = 'lightgrey'
 
-    pri_ax.plot([i, i], [low, high], color=b_color)
-    pri_ax.plot([i, (i - 0.1)], [open, open], color=b_color)
-    pri_ax.plot([i, (i + 0.1)], [close, close], color=b_color)
+    pri_ax.plot([i, i], [low, high], linewidth=1, color=b_color)
+    pri_ax.plot([(i - 0.15), (i + 0.00)], [open, open], color=b_color)
+    pri_ax.plot([(i + 0.10), (i + 0.20)], [close, close], color=b_color)
 
     vol_ax.plot([i, i], [0, volume], linewidth=8, color=v_color)
 
@@ -164,17 +195,18 @@ plt.ylim(0, max_volume)
 
 # Show the chart (doesn't block the program).
 
-plt.show(block=True)
-exit()
+plt.show(block=False)
+
+pri_ax.set_title(ticker)
 
 # Plot rectangles (on keypress, draw next rectangle).
 
 for r in rectangles:
 
-    a = plt.plot([r[0]-0.5, r[1]+0.5], [r[2], r[2]], color='black')
-    b = plt.plot([r[0]-0.5, r[1]+0.5], [r[3], r[3]], color='black')
-    c = plt.plot([r[0]-0.5, r[0]-0.5], [r[2], r[3]], color='black')
-    d = plt.plot([r[1]+0.5, r[1]+0.5], [r[2], r[3]], color='black')
+    a = pri_ax.plot([r[0]-0.5, r[1]+0.5], [r[2], r[2]], color='black')
+    b = pri_ax.plot([r[0]-0.5, r[1]+0.5], [r[3], r[3]], color='black')
+    c = pri_ax.plot([r[0]-0.5, r[0]-0.5], [r[2], r[3]], color='black')
+    d = pri_ax.plot([r[1]+0.5, r[1]+0.5], [r[2], r[3]], color='black')
 
     plt.draw()
 
@@ -189,5 +221,3 @@ for r in rectangles:
     b.remove()
     c.remove()
     d.remove()
-
-    break

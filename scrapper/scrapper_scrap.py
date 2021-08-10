@@ -3,7 +3,7 @@
 
 scrapper_scrap.py
 
-python3 scrapper_scrap.py LWSA3 19/06/2021 ../data/
+python3 scrapper_scrap.py LWSA3 ../data/
 
 '''
 
@@ -18,13 +18,15 @@ from scrapper_main import get_month_quote
 timeseries = []
 
 ticker = sys.argv[1]
-date_string = sys.argv[2]
-output_path = sys.argv[3]
+output_path = sys.argv[2]
+
+date_init = '01/01/2021'
+date_final = '01/07/2021'
 
 date_format = '%d/%m/%Y'
-given_date = datetime.strptime(date_string, date_format).date()
+given_date = datetime.strptime(date_init, date_format).date()
 loop_date = datetime(given_date.year, given_date.month, 1)
-current_date = datetime.now()
+current_date = datetime.strptime(date_final, date_format)
 
 while loop_date < current_date:
 
