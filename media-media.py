@@ -1,9 +1,9 @@
 
 '''
 
-media-preco.py
+media-media.py
 
-python3 media-preco.py
+python3 media-media.py
 
 '''
 
@@ -27,20 +27,29 @@ for ticker in tickers:
 
     df["close"] = pd.to_numeric(df["close"])
 
-    # Calcular a média móvel.
+    # Calcular as médias móveis (curta e longa).
 
-    length = 21
-    moving_average = []
+    fast_length = 7
+    slow_length = 21
+
+    fast_moving_average = []
+    slow_moving_average = []
 
     for i, session in df.iterrows():
 
         close = session['close']
 
-        d = length if i >= length else (i + 1)
+        d = fast_length if i >= fast_length else (i + 1)
         v = df.iloc[(i-d+1):(i+1)]['close'].tolist()
         s = sum(v)
 
-        moving_average.append(s / d)
+        fast_moving_average.append(s / d)
+
+        d = slow_length if i >= slow_length else (i + 1)
+        v = df.iloc[(i-d+1):(i+1)]['close'].tolist()
+        s = sum(v)
+
+        slow_moving_average.append(s / d)
 
     # Determinar os pontos de cruzamento.
 
@@ -49,35 +58,36 @@ for ticker in tickers:
     for i, session in df.iterrows():
 
         if i == 0: continue
-        if i < (length-1): continue
+        if i < (slow_length-1): continue
 
         date = session['date']
         current_close = session['close']
-        previous_close = df.iloc[i-1]['close']
 
-        current_ma = moving_average[i]
-        previous_ma = moving_average[i-1]
+        current_fma = fast_moving_average[i]
+        previous_fma = fast_moving_average[i-1]
 
-        if previous_ma > previous_close and current_close > current_ma:
+        current_sma = slow_moving_average[i]
+        previous_sma = slow_moving_average[i-1]
+
+        if previous_sma > previous_fma and current_fma > current_sma:
 
             crossovers.append([date, 'buy', current_close, i])
 
-        elif previous_close > previous_ma and current_ma > current_close:
+        elif previous_fma > previous_sma and current_sma > current_fma:
 
             crossovers.append([date, 'sell', current_close, i])
 
     # Determinar as operações.
 
-    if len(crossovers) < 2:
-
-        print(ticker + ';0;0')
-
-        continue
+    budget = 1000
+    amount = budget
 
     count = 0
     success = 0
     purchases = 0
     sells = 0
+    best_win = 0
+    worst_loss = 0
 
     trade_date = crossovers[0][0]
     trade_side = crossovers[0][1]
@@ -97,11 +107,19 @@ for ticker in tickers:
             result = (price / trade_price) - 1
             duration = session - trade_session
 
+            amount = (amount / trade_price) * price
+
+            if amount < 100:
+
+                print('FUCK')
+                exit()
+
+            count += 1
+            success += 1 if profit > 0 else 0
             purchases += trade_price
             sells += price
-
-            #count += 1
-            #success += 1 if profit > 0 else 0
+            best_win = max(best_win, result)
+            worst_loss = min(worst_loss, result)
 
             #print('Operação comprada.')
             #print('Data da compra: ' + str(trade_date))
@@ -119,8 +137,8 @@ for ticker in tickers:
             result = (trade_price / price) - 1
             duration = session - trade_session
 
-            purchases += price
-            sells += trade_price
+            #purchases += price
+            #sells += trade_price
 
             #count += 1
             #success += 1 if profit > 0 else 0
@@ -140,15 +158,21 @@ for ticker in tickers:
         trade_price = price
         trade_session = session
 
-        count += 1
-        success += 1 if profit > 0 else 0
+    fst_price = df['close'].iloc[0]
+    lst_price = df['close'].iloc[-1]
 
-    #print('count: ' + str(count))
-    #print('success: ' + str(success))
-    #print('result: ' + str((sells/purchases)-1))
+    success_rate = success / count
+    average_gain_per_trade = (sells / purchases) - 1
+    estrategy_result = (amount / budget) - 1
+    buy_n_hold_result = (lst_price / fst_price) - 1
 
-    output  = ticker + ';'
-    output += str(success/count).replace('.', ',') + ';'
-    output += str((sells/purchases)-1).replace('.', ',')
+    output  = ticker                                        + ';'
+    output += str(success_rate).replace('.', ',')           + ';'
+    output += str(average_gain_per_trade).replace('.', ',') + ';'
+    output += str(amount).replace('.', ',')                 + ';'
+    output += str(estrategy_result).replace('.', ',')       + ';'
+    output += str(buy_n_hold_result).replace('.', ',')      + ';'
+    output += str(best_win).replace('.', ',')               + ';'
+    output += str(worst_loss).replace('.', ',')
 
     print(output)
