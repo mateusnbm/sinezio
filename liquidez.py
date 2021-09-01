@@ -12,13 +12,13 @@ import pandas as pd
 
 data = []
 
-tickers_file = open('./ativos.txt', 'r')
+tickers_file = open('./ativos-ibovespa.txt', 'r')
 
 for line in tickers_file.readlines():
 
     ticker = line.strip().upper()
 
-    input_path = './data/' + ticker + '.json'
+    input_path = './dados/yahoo/1d/' + ticker + '.json'
     input_file = open(input_path, 'r')
     timeseries = json.load(input_file)
     input_file.close()
@@ -27,10 +27,9 @@ for line in tickers_file.readlines():
 
     df['close'] = pd.to_numeric(df['close'])
     df['volume'] = pd.to_numeric(df['volume'])
-    df['volume_f'] = df['close'] * df['volume']
 
     n_rows = len(df.index)
-    v_mean = int(df['volume_f'].mean())
+    v_mean = int(df['volume'].tail(min(n_rows, 100)).mean())
 
     data.append([ticker, n_rows, v_mean])
 

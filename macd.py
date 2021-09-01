@@ -1,30 +1,24 @@
 
 '''
 
-media-preco.py
+macd.py
 
-python3 media-preco.py 1d 7 ./operacoes/
+python3 macd.py
 
 '''
 
-import sys
 import json
 import pandas as pd
-from pathlib import Path
-
-interval = sys.argv[1]
-mm_length = int(sys.argv[2])
-output_dir = sys.argv[3]
 
 results = []
 
-tickers_file = open('./ativos-selecionados.txt', 'r')
+tickers_file = open('./ativos.txt', 'r')
 tickers = [t.strip().upper() for t in tickers_file.readlines()]
 tickers_file.close()
 
 for ticker in tickers:
 
-    input_path = './dados/yahoo/1d/' + ticker + '.json'
+    input_path = './data/' + ticker + '.json'
     input_file = open(input_path, 'r')
     timeseries = json.load(input_file)
     input_file.close()
@@ -33,47 +27,59 @@ for ticker in tickers:
 
     df["close"] = pd.to_numeric(df["close"])
 
-    # Calcular a média móvel.
+    # Calcular as médias móveis exponenciais (curta e longa).
 
-    moving_average = []
+    fast_length = 12
+    slow_length = 26
+
+    fast_moving_average = [df['close'].iloc[0]]
+    slow_moving_average = [df['close'].iloc[0]]
 
     for i, session in df.iterrows():
 
+        if i == 0: continue
+
         close = session['close']
 
-        d = mm_length if i >= mm_length else (i + 1)
-        v = df.iloc[(i-d+1):(i+1)]['close'].tolist()
-        s = sum(v)
+        l = fast_moving_average[-1]
+        m = (close - l) * (2 / (1 + fast_length)) + l
 
-        moving_average.append(s / d)
+        fast_moving_average.append(m)
 
-    # Determinar os pontos de cruzamento.
+        l = slow_moving_average[-1]
+        m = (close - l) * (2 / (1 + slow_length)) + l
+
+        slow_moving_average.append(m)
+
+    # Determinar os pontos de cruzamento (cruzando linha do 0).
 
     crossovers = []
 
     for i, session in df.iterrows():
 
         if i == 0: continue
-        if i < (mm_length-1): continue
+        if i < (slow_length-1): continue
 
         date = session['date']
         current_close = session['close']
-        previous_close = df.iloc[i-1]['close']
 
-        current_ma = moving_average[i]
-        previous_ma = moving_average[i-1]
+        current_fma = fast_moving_average[i]
+        current_sma = slow_moving_average[i]
+        current_diff = current_fma - current_sma
 
-        if previous_ma > previous_close and current_close > current_ma:
+        previous_fma = fast_moving_average[i-1]
+        previous_sma = slow_moving_average[i-1]
+        previous_diff = previous_fma - previous_sma
+
+        if previous_diff < 0 and current_diff > 0:
 
             crossovers.append([date, 'buy', current_close, i])
 
-        elif previous_close > previous_ma and current_ma > current_close:
+        elif previous_diff > 0 and current_diff < 0:
 
             crossovers.append([date, 'sell', current_close, i])
 
     # Determinar as operações.
-
-    trades = []
 
     budget = 1000
     amount = budget
@@ -105,6 +111,11 @@ for ticker in tickers:
 
             amount = (amount / trade_price) * price
 
+            if amount < 100:
+
+                print('FUCK')
+                exit()
+
             count += 1
             success += 1 if profit > 0 else 0
             purchases += trade_price
@@ -121,15 +132,6 @@ for ticker in tickers:
             #print('Resultado: ' + str(result))
             #print('Duração: ' + str(duration))
             #print('')
-
-            trades.append({})
-
-            trades[-1]['compra_data'] = str(trade_date)
-            trades[-1]['compra_preço'] = str(trade_price)
-            trades[-1]['venda_data'] = str(date)
-            trades[-1]['venda_preço'] = str(price)
-            trades[-1]['resultado'] = str(result)
-            trades[-1]['no_pregoes'] = str(duration)
 
         elif trade_side == 'sell':
 
@@ -167,7 +169,6 @@ for ticker in tickers:
     buy_n_hold_result = (lst_price / fst_price) - 1
 
     output  = ticker                                        + ';'
-    output += str(count).replace('.', ',')                  + ';'
     output += str(success_rate).replace('.', ',')           + ';'
     output += str(average_gain_per_trade).replace('.', ',') + ';'
     output += str(amount).replace('.', ',')                 + ';'
@@ -177,16 +178,3 @@ for ticker in tickers:
     output += str(worst_loss).replace('.', ',')
 
     print(output)
-
-    # Log trades.
-
-    trades_path  = output_dir
-    trades_path += 'MM' + str(mm_length) + '/'
-    trades_path += interval + '/'
-
-    Path(trades_path).mkdir(parents=True, exist_ok=True)
-
-    trades_path += ticker + '.json'
-    trades_file = open(trades_path, 'w')
-    trades_file.write(json.dumps(trades))
-    trades_file.close()
