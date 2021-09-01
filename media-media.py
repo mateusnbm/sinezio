@@ -3,22 +3,28 @@
 
 media-media.py
 
-python3 media-media.py
+python3 media-media.py 1d 9 21 ./operacoes/
 
 '''
 
+import sys
 import json
 import pandas as pd
 
+interval    = sys.argv[1]
+fast_length = int(sys.argv[2])
+slow_length = int(sys.argv[3])
+output_dir  = sys.argv[4]
+
 results = []
 
-tickers_file = open('./ativos.txt', 'r')
+tickers_file = open('./ativos-selecionados.txt', 'r')
 tickers = [t.strip().upper() for t in tickers_file.readlines()]
 tickers_file.close()
 
 for ticker in tickers:
 
-    input_path = './data/' + ticker + '.json'
+    input_path = './dados/yahoo/' + interval + '/' + ticker + '.json'
     input_file = open(input_path, 'r')
     timeseries = json.load(input_file)
     input_file.close()
@@ -28,9 +34,6 @@ for ticker in tickers:
     df["close"] = pd.to_numeric(df["close"])
 
     # Calcular as médias móveis (curta e longa).
-
-    fast_length = 7
-    slow_length = 21
 
     fast_moving_average = []
     slow_moving_average = []

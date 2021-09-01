@@ -3,28 +3,63 @@
 
 media-preco.py
 
-python3 media-preco.py 1d 7 ./operacoes/
+Uso:
+
+    python3 media-preco.py 1d 7
+
+Sobre:
+
+    Calcula a efetividade da estratégia média-preço para um conjunto de ativos.
+
+    Ponto de compra: Média cruza preço para cima.
+    Ponto de venda: Média cruza preço para baixo.
+
+    Dados calculados:
+
+        1. Número de operações
+        2. Taxa de operações bem sucedidas (com lucro)
+        3. Montante final (mil reais sendo reinvestidos continuamente)
+        4. Retorno com a estratégia média-preço
+        5. Retorno com a estratégia Buy & Hold
+        6. Maior ganho com média-preço
+        7. Maior perda com média-preço
 
 '''
+
 
 import sys
 import json
 import pandas as pd
+
 from pathlib import Path
 
-interval = sys.argv[1]
-mm_length = int(sys.argv[2])
-output_dir = sys.argv[3]
 
-results = []
+# Variáveis e demais definições globais.
 
-tickers_file = open('./ativos-selecionados.txt', 'r')
+tickers_path    = './ativos-selecionados.txt'
+timeseries_path = './dados/yahoo/'
+trades_path     = './operacoes/'
+
+# Parâmetros de entrada do programa.
+# O intervalo dos candles (dia, semana ou mês).
+# O comprimento da média móvel.
+
+interval  = sys.argv[1]
+ma_length = int(sys.argv[2])
+
+# Abre a carrega a lista de tickers a partir do arquivo especificado.
+
+tickers_file = open(tickers_path, 'r')
 tickers = [t.strip().upper() for t in tickers_file.readlines()]
 tickers_file.close()
 
+# Iteramos sobre a lista de tickers executando a estratégia.
+
 for ticker in tickers:
 
-    input_path = './dados/yahoo/1d/' + ticker + '.json'
+    # Carregar a série temporal do ativo em um dataframe da Pandas.
+
+    input_path = (timeseries_path + interval + '/' + ticker + '.json')
     input_file = open(input_path, 'r')
     timeseries = json.load(input_file)
     input_file.close()
@@ -41,7 +76,7 @@ for ticker in tickers:
 
         close = session['close']
 
-        d = mm_length if i >= mm_length else (i + 1)
+        d = ma_length if i >= ma_length else (i + 1)
         v = df.iloc[(i-d+1):(i+1)]['close'].tolist()
         s = sum(v)
 
@@ -54,7 +89,7 @@ for ticker in tickers:
     for i, session in df.iterrows():
 
         if i == 0: continue
-        if i < (mm_length-1): continue
+        if i < (ma_length-1): continue
 
         date = session['date']
         current_close = session['close']
@@ -80,96 +115,60 @@ for ticker in tickers:
 
     count = 0
     success = 0
-    purchases = 0
-    sells = 0
     best_win = 0
     worst_loss = 0
 
-    trade_date = crossovers[0][0]
-    trade_side = crossovers[0][1]
-    trade_price = crossovers[0][2]
-    trade_session = crossovers[0][3]
+    if len(crossovers) > 1:
 
-    for cross in crossovers[1:]:
+        trade_date = crossovers[0][0]
+        trade_side = crossovers[0][1]
+        trade_price = crossovers[0][2]
+        trade_session = crossovers[0][3]
 
-        date = cross[0]
-        side = cross[1]
-        price = cross[2]
-        session = cross[3]
+        for cross in crossovers[1:]:
 
-        if trade_side == 'buy':
+            date = cross[0]
+            side = cross[1]
+            price = cross[2]
+            session = cross[3]
 
-            profit = price - trade_price
-            result = (price / trade_price) - 1
-            duration = session - trade_session
+            if trade_side == 'buy':
 
-            amount = (amount / trade_price) * price
+                profit = price - trade_price
+                result = (price / trade_price) - 1
+                duration = session - trade_session
 
-            count += 1
-            success += 1 if profit > 0 else 0
-            purchases += trade_price
-            sells += price
-            best_win = max(best_win, result)
-            worst_loss = min(worst_loss, result)
+                amount = (amount / trade_price) * price
 
-            #print('Operação comprada.')
-            #print('Data da compra: ' + str(trade_date))
-            #print('Preço de compra: ' + str(trade_price))
-            #print('Data da venda: ' + str(date))
-            #print('Preço de venda: ' + str(price))
-            #print('Lucro: ' + str(profit))
-            #print('Resultado: ' + str(result))
-            #print('Duração: ' + str(duration))
-            #print('')
+                count += 1
+                success += 1 if profit > 0 else 0
+                best_win = max(best_win, result)
+                worst_loss = min(worst_loss, result)
 
-            trades.append({})
+                trades.append({})
 
-            trades[-1]['compra_data'] = str(trade_date)
-            trades[-1]['compra_preço'] = str(trade_price)
-            trades[-1]['venda_data'] = str(date)
-            trades[-1]['venda_preço'] = str(price)
-            trades[-1]['resultado'] = str(result)
-            trades[-1]['no_pregoes'] = str(duration)
+                trades[-1]['compra_data']   = trade_date
+                trades[-1]['compra_preço']  = trade_price
+                trades[-1]['venda_data']    = date
+                trades[-1]['venda_preço']   = price
+                trades[-1]['resultado']     = '{:.2f}%'.format(result * 100)
+                trades[-1]['no_pregões']    = duration
 
-        elif trade_side == 'sell':
-
-            profit = trade_price - price
-            result = (trade_price / price) - 1
-            duration = session - trade_session
-
-            #purchases += price
-            #sells += trade_price
-
-            #count += 1
-            #success += 1 if profit > 0 else 0
-
-            #print('Operação vendida.')
-            #print('Data da venda: ' + str(trade_date))
-            #print('Preço de venda: ' + str(trade_price))
-            #print('Data da compra: ' + str(date))
-            #print('Preço de compra: ' + str(price))
-            #print('Lucro: ' + str(profit))
-            #print('Resultado: ' + str(result))
-            #print('Duração: ' + str(duration))
-            #print('')
-
-        trade_date = date
-        trade_side = side
-        trade_price = price
-        trade_session = session
+            trade_date = date
+            trade_side = side
+            trade_price = price
+            trade_session = session
 
     fst_price = df['close'].iloc[0]
     lst_price = df['close'].iloc[-1]
 
-    success_rate = success / count
-    average_gain_per_trade = (sells / purchases) - 1
+    success_rate = 0 if count == 0 else (success / count)
     estrategy_result = (amount / budget) - 1
     buy_n_hold_result = (lst_price / fst_price) - 1
 
     output  = ticker                                        + ';'
     output += str(count).replace('.', ',')                  + ';'
     output += str(success_rate).replace('.', ',')           + ';'
-    output += str(average_gain_per_trade).replace('.', ',') + ';'
     output += str(amount).replace('.', ',')                 + ';'
     output += str(estrategy_result).replace('.', ',')       + ';'
     output += str(buy_n_hold_result).replace('.', ',')      + ';'
@@ -178,15 +177,15 @@ for ticker in tickers:
 
     print(output)
 
-    # Log trades.
+    # Escrever as operações em um arquivo (p/ conferência posterior).
 
-    trades_path  = output_dir
-    trades_path += 'MM' + str(mm_length) + '/'
-    trades_path += interval + '/'
+    trades_log_path  = './operacoes/media-preço/'
+    trades_log_path += 'MM' + str(ma_length) + '/'
+    trades_log_path += interval + '/'
 
-    Path(trades_path).mkdir(parents=True, exist_ok=True)
+    Path(trades_log_path).mkdir(parents=True, exist_ok=True)
 
-    trades_path += ticker + '.json'
-    trades_file = open(trades_path, 'w')
+    trades_log_path += ticker + '.json'
+    trades_file = open(trades_log_path, 'w')
     trades_file.write(json.dumps(trades))
     trades_file.close()
