@@ -11,8 +11,8 @@ Sobre:
 
     Calcula a efetividade da estratégia MACDS para um conjunto de ativos.
 
-    Ponto de compra: Sinal cruza a diferença entre as médias para cima.
-    Ponto de venda: Sinal cruza a diferença entre as médias para baixo.
+    Ponto de compra: Diferença entre as médias cruza o sinal para cima.
+    Ponto de venda: Diferença entre as médias cruza o sinal para baixo.
 
     Dados computados:
 
@@ -26,22 +26,59 @@ Sobre:
 
     O agregado de todos os ativos é salvo no arquivo:
 
-        './operacoes/macd/MACDS-{FAST}-{SLOW}-{SIGN}/{INTERVALO}/agregado.txt'.
+        './operacoes/macds/MACDS-{FAST}-{SLOW}-{SIGN}/{INTERVALO}/agregado.txt'.
 
 '''
 
+import sys
 import json
 import pandas as pd
 
-results = []
+from pathlib import Path
 
-tickers_file = open('./ativos.txt', 'r')
+# Variáveis e demais definições globais.
+
+tickers_path    = './ativos-selecionados.txt'
+timeseries_path = './dados/yahoo/'
+trades_path     = './operacoes/'
+
+# Parâmetros de entrada do programa:
+# Intervalo dos candles (dia, semana ou mês).
+# Comprimento da média móvel curta.
+# Comprimento da média móvel longa.
+# Comprimento da média móvel do sinal.
+
+interval  = sys.argv[1]
+fast_length = int(sys.argv[2])
+slow_length = int(sys.argv[3])
+sign_length = int(sys.argv[4])
+
+# Cria os diretórios no caminho de escrita dos arquivos.
+
+output_path  = './operacoes/macds/MACDS-'
+output_path += str(fast_length) + '-'
+output_path += str(slow_length) + '-'
+output_path += str(sign_length) + '/'
+output_path += interval + '/'
+
+Path(output_path).mkdir(parents=True, exist_ok=True)
+
+aggregate_file_path = output_path + 'agregado.txt'
+aggregate_file = open(aggregate_file_path, 'w')
+
+# Abre a carrega a lista de tickers a partir do arquivo especificado.
+
+tickers_file = open(tickers_path, 'r')
 tickers = [t.strip().upper() for t in tickers_file.readlines()]
 tickers_file.close()
 
+# Iteramos sobre a lista de tickers executando a estratégia.
+
 for ticker in tickers:
 
-    input_path = './data/' + ticker + '.json'
+    # Carregar a série temporal do ativo em um dataframe da Pandas.
+
+    input_path = (timeseries_path + interval + '/' + ticker + '.json')
     input_file = open(input_path, 'r')
     timeseries = json.load(input_file)
     input_file.close()
@@ -50,19 +87,13 @@ for ticker in tickers:
 
     df["close"] = pd.to_numeric(df["close"])
 
-    # Calcular as médias móveis exponenciais (curta e longa).
-
-    fast_length = 12
-    slow_length = 26
-    sign_length = 9
+    # Calcular as médias móveis exponenciais (curta, longa e sinal).
 
     fast_moving_average = [df['close'].iloc[0]]
     slow_moving_average = [df['close'].iloc[0]]
     sign_moving_average = [df['close'].iloc[0]]
 
-    for i, session in df.iterrows():
-
-        if i == 0: continue
+    for i, session in df.iloc[1:].iterrows():
 
         close = session['close']
 
@@ -115,96 +146,67 @@ for ticker in tickers:
 
     # Determinar as operações.
 
+    trades = []
+
     budget = 1000
     amount = budget
 
     count = 0
     success = 0
-    purchases = 0
-    sells = 0
     best_win = 0
     worst_loss = 0
 
-    trade_date = crossovers[0][0]
-    trade_side = crossovers[0][1]
-    trade_price = crossovers[0][2]
-    trade_session = crossovers[0][3]
+    if len(crossovers) > 1:
 
-    for cross in crossovers[1:]:
+        trade_date = crossovers[0][0]
+        trade_side = crossovers[0][1]
+        trade_price = crossovers[0][2]
+        trade_session = crossovers[0][3]
 
-        date = cross[0]
-        side = cross[1]
-        price = cross[2]
-        session = cross[3]
+        for cross in crossovers[1:]:
 
-        if trade_side == 'buy':
+            date = cross[0]
+            side = cross[1]
+            price = cross[2]
+            session = cross[3]
 
-            profit = price - trade_price
-            result = (price / trade_price) - 1
-            duration = session - trade_session
+            if trade_side == 'buy':
 
-            amount = (amount / trade_price) * price
+                profit = price - trade_price
+                result = (price / trade_price) - 1
+                duration = session - trade_session
 
-            if amount < 100:
+                amount = (amount / trade_price) * price
 
-                print('FUCK')
-                exit()
+                count += 1
+                success += 1 if profit > 0 else 0
+                best_win = max(best_win, result)
+                worst_loss = min(worst_loss, result)
 
-            count += 1
-            success += 1 if profit > 0 else 0
-            purchases += trade_price
-            sells += price
-            best_win = max(best_win, result)
-            worst_loss = min(worst_loss, result)
+                trades.append({})
 
-            #print('Operação comprada.')
-            #print('Data da compra: ' + str(trade_date))
-            #print('Preço de compra: ' + str(trade_price))
-            #print('Data da venda: ' + str(date))
-            #print('Preço de venda: ' + str(price))
-            #print('Lucro: ' + str(profit))
-            #print('Resultado: ' + str(result))
-            #print('Duração: ' + str(duration))
-            #print('')
+                trades[-1]['compra_data']   = trade_date
+                trades[-1]['compra_preço']  = trade_price
+                trades[-1]['venda_data']    = date
+                trades[-1]['venda_preço']   = price
+                trades[-1]['resultado']     = '{:.2f}%'.format(result * 100)
+                trades[-1]['no_pregões']    = duration
 
-        elif trade_side == 'sell':
-
-            profit = trade_price - price
-            result = (trade_price / price) - 1
-            duration = session - trade_session
-
-            #purchases += price
-            #sells += trade_price
-
-            #count += 1
-            #success += 1 if profit > 0 else 0
-
-            #print('Operação vendida.')
-            #print('Data da venda: ' + str(trade_date))
-            #print('Preço de venda: ' + str(trade_price))
-            #print('Data da compra: ' + str(date))
-            #print('Preço de compra: ' + str(price))
-            #print('Lucro: ' + str(profit))
-            #print('Resultado: ' + str(result))
-            #print('Duração: ' + str(duration))
-            #print('')
-
-        trade_date = date
-        trade_side = side
-        trade_price = price
-        trade_session = session
+            trade_date = date
+            trade_side = side
+            trade_price = price
+            trade_session = session
 
     fst_price = df['close'].iloc[0]
     lst_price = df['close'].iloc[-1]
 
-    success_rate = success / count
-    average_gain_per_trade = (sells / purchases) - 1
+    success_rate = 0 if count == 0 else (success / count)
     estrategy_result = (amount / budget) - 1
     buy_n_hold_result = (lst_price / fst_price) - 1
 
     output  = ticker                                        + ';'
+    output += str(count).replace('.', ',')                  + ';'
     output += str(success_rate).replace('.', ',')           + ';'
-    output += str(average_gain_per_trade).replace('.', ',') + ';'
     output += str(amount).replace('.', ',')                 + ';'
     output += str(estrategy_result).replace('.', ',')       + ';'
     output += str(buy_n_hold_result).replace('.', ',')      + ';'
@@ -212,3 +214,16 @@ for ticker in tickers:
     output += str(worst_loss).replace('.', ',')
 
     print(output)
+
+    aggregate_file.write(output + '\n')
+
+    # Escrever as operações em um arquivo (para conferência posterior).
+
+    trades_log_path = output_path + ticker + '.json'
+    trades_file = open(trades_log_path, 'w')
+    trades_file.write(json.dumps(trades))
+    trades_file.close()
+
+# Fecha o arquivo contendo o agregado de todos os ativos.
+
+aggregate_file.close()

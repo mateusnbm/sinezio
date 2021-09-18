@@ -53,8 +53,9 @@ slow_length = int(sys.argv[3])
 
 # Cria os diretórios no caminho de escrita dos arquivos.
 
-output_path  = './operacoes/macd/'
-output_path += 'MACD-' + str(fast_length) + '-' + str(slow_length) + '/'
+output_path  = './operacoes/macd/MACD-'
+output_path += str(fast_length) + '-'
+output_path += str(slow_length) + '/'
 output_path += interval + '/'
 
 Path(output_path).mkdir(parents=True, exist_ok=True)
