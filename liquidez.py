@@ -3,7 +3,15 @@
 
 liquidez.py
 
-python3 liquidez.py
+Uso:
+
+    python3 liquidez.py
+
+Sobre:
+
+    Ordena os ativos de acordo com a liquidez média dos últimos 100 dias.
+
+    Lista em ordem decrescente a posição, ticker, número de pregões e o volume.
 
 '''
 
@@ -25,7 +33,6 @@ for line in tickers_file.readlines():
 
     df = pd.DataFrame(timeseries)
 
-    df['close'] = pd.to_numeric(df['close'])
     df['volume'] = pd.to_numeric(df['volume'])
 
     n_rows = len(df.index)
@@ -37,6 +44,6 @@ data.sort(key=lambda x: x[2], reverse=True)
 
 for i, entry in enumerate(data):
 
-    print('{:3d} {:6s} {:5d} {:12.2f}'.format(i, entry[0], entry[1], entry[2]))
+    print('{:3d} {:6s} {:5d} {:12.2f}'.format((i+1), entry[0], entry[1], entry[2]))
 
 tickers_file.close()

@@ -3,9 +3,25 @@
 
 scrapper_yahoo.py
 
-python3 scrapper_yahoo.py 1d  ../dados/yahoo/
-python3 scrapper_yahoo.py 1mo ../dados/yahoo/
-python3 scrapper_yahoo.py 3mo ../dados/yahoo/
+Uso:
+
+    python3 scrapper_yahoo.py 1d  ../dados/yahoo/
+    python3 scrapper_yahoo.py 1mo ../dados/yahoo/
+    python3 scrapper_yahoo.py 3mo ../dados/yahoo/
+
+Sobre:
+
+    Coleta cotações diárias para um conjunto de ativos usando o Yahoo Finance.
+
+    São registradas:
+
+        - Abertura
+        - Fechamento ajustado (dividendos, bonificações, etc)
+        - Mínima
+        - Máxima
+        - Volume financeiro aproximado (número de negócios * média dos preços)
+
+    Os dados são escritos em './dados/yahoo/{INTERVALO}/{TICKER}.json'.
 
 '''
 

@@ -14,7 +14,7 @@ Sobre:
     Ponto de compra: Média cruza preço para cima.
     Ponto de venda: Média cruza preço para baixo.
 
-    Dados calculados:
+    Dados computados:
 
         1. Número de operações
         2. Taxa de operações bem sucedidas (com lucro)
@@ -24,8 +24,15 @@ Sobre:
         6. Maior ganho com média-preço
         7. Maior perda com média-preço
 
-'''
+    Os registros de todas as operações por ativo são salvos em:
 
+        './operacoes/media-preço/MM{COMPRIMENTO}/{INTERVALO}/{TICKER}.json'.
+
+    O agregado de todos os ativos é salvo no arquivo:
+
+        './operacoes/media-preço/MM{COMPRIMENTO}/{INTERVALO}/agregado.txt'.
+
+'''
 
 import sys
 import json
@@ -33,19 +40,29 @@ import pandas as pd
 
 from pathlib import Path
 
-
 # Variáveis e demais definições globais.
 
 tickers_path    = './ativos-selecionados.txt'
 timeseries_path = './dados/yahoo/'
 trades_path     = './operacoes/'
 
-# Parâmetros de entrada do programa.
-# O intervalo dos candles (dia, semana ou mês).
-# O comprimento da média móvel.
+# Parâmetros de entrada do programa:
+# Intervalo dos candles (dia, semana ou mês).
+# Comprimento da média móvel.
 
 interval  = sys.argv[1]
 ma_length = int(sys.argv[2])
+
+# Cria os diretórios no caminho de escrita dos arquivos.
+
+output_path  = './operacoes/media-preço/'
+output_path += 'MM' + str(ma_length) + '/'
+output_path += interval + '/'
+
+Path(output_path).mkdir(parents=True, exist_ok=True)
+
+aggregate_file_path = output_path + 'agregado.txt'
+aggregate_file = open(aggregate_file_path, 'w')
 
 # Abre a carrega a lista de tickers a partir do arquivo especificado.
 
@@ -177,15 +194,15 @@ for ticker in tickers:
 
     print(output)
 
-    # Escrever as operações em um arquivo (p/ conferência posterior).
+    aggregate_file.write(output + '\n')
 
-    trades_log_path  = './operacoes/media-preço/'
-    trades_log_path += 'MM' + str(ma_length) + '/'
-    trades_log_path += interval + '/'
+    # Escrever as operações em um arquivo (para conferência posterior).
 
-    Path(trades_log_path).mkdir(parents=True, exist_ok=True)
-
-    trades_log_path += ticker + '.json'
+    trades_log_path = output_path + ticker + '.json'
     trades_file = open(trades_log_path, 'w')
     trades_file.write(json.dumps(trades))
     trades_file.close()
+
+# Fecha o arquivo contendo o agregado de todos os ativos.
+
+aggregate_file.close()

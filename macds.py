@@ -3,7 +3,30 @@
 
 macds.py
 
-python3 macds.py
+Uso:
+
+    python3 macds.py 1d 12 26 9
+
+Sobre:
+
+    Calcula a efetividade da estratégia MACDS para um conjunto de ativos.
+
+    Ponto de compra: Sinal cruza a diferença entre as médias para cima.
+    Ponto de venda: Sinal cruza a diferença entre as médias para baixo.
+
+    Dados computados:
+
+        1. Número de operações
+        2. Taxa de operações bem sucedidas (com lucro)
+        3. Montante final (mil reais sendo reinvestidos continuamente)
+        4. Retorno com a estratégia média-preço
+        5. Retorno com a estratégia Buy & Hold
+        6. Maior ganho com média-preço
+        7. Maior perda com média-preço
+
+    O agregado de todos os ativos é salvo no arquivo:
+
+        './operacoes/macd/MACDS-{FAST}-{SLOW}-{SIGN}/{INTERVALO}/agregado.txt'.
 
 '''
 

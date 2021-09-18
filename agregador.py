@@ -3,7 +3,15 @@
 
 agregador.py
 
-python3 agregador.py
+Uso:
+
+    python3 agregador.py
+
+Sobre:
+
+    Agrega candles diários em janela semanal ou mensal.
+
+    Os dados são escritos em './dados/yahoo/{INTERVALO}/{TICKER}.json'.
 
 '''
 
