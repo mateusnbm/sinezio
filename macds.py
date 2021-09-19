@@ -85,17 +85,17 @@ for ticker in tickers:
 
     df = pd.DataFrame(timeseries)
 
-    df["close"] = pd.to_numeric(df["close"])
+    df["adj_close"] = pd.to_numeric(df["adj_close"])
 
     # Calcular as médias móveis exponenciais (curta, longa e sinal).
 
-    fast_moving_average = [df['close'].iloc[0]]
-    slow_moving_average = [df['close'].iloc[0]]
-    sign_moving_average = [df['close'].iloc[0]]
+    fast_moving_average = [df['adj_close'].iloc[0]]
+    slow_moving_average = [df['adj_close'].iloc[0]]
+    sign_moving_average = [df['adj_close'].iloc[0]]
 
     for i, session in df.iloc[1:].iterrows():
 
-        close = session['close']
+        close = session['adj_close']
 
         l = fast_moving_average[-1]
         m = (close - l) * (2 / (1 + fast_length)) + l
@@ -123,7 +123,7 @@ for ticker in tickers:
         if i < (slow_length-1): continue
 
         date = session['date']
-        current_close = session['close']
+        current_close = session['adj_close']
 
         current_fma = fast_moving_average[i]
         current_sma = slow_moving_average[i]
@@ -197,8 +197,8 @@ for ticker in tickers:
             trade_price = price
             trade_session = session
 
-    fst_price = df['close'].iloc[0]
-    lst_price = df['close'].iloc[-1]
+    fst_price = df['adj_close'].iloc[0]
+    lst_price = df['adj_close'].iloc[-1]
 
     success_rate = 0 if count == 0 else (success / count)
     estrategy_result = (amount / budget) - 1
