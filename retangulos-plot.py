@@ -1,11 +1,11 @@
 
 '''
 
-retangulos.py
+retangulos-plot.py
 
 Uso:
 
-    python3 retangulos.py BBDC4 1d 14
+    python3 retangulos-plot.py BBDC4 1d 14
 
 Sobre:
 
@@ -27,7 +27,7 @@ from datetime import datetime
 # Variáveis e demais definições globais.
 
 timeseries_path = './dados/yahoo/'
-trades_path     = './operacoes/'
+trades_path = './operacoes/'
 
 # Parâmetros de entrada do programa:
 # Ticker da empresa.
@@ -37,6 +37,12 @@ trades_path     = './operacoes/'
 ticker = sys.argv[1]
 interval  = sys.argv[2]
 volume_ma_length = int(sys.argv[3])
+
+# Cria os diretórios no caminho de escrita dos arquivos.
+
+output_path  = './operacoes/retangulos/'
+output_path += 'MM-VOL-' + str(volume_ma_length) + '/'
+output_path += interval + '/'
 
 # Carregar a série temporal do ativo em um dataframe da Pandas.
 
@@ -54,6 +60,9 @@ df["open"]  = pd.to_numeric(df["open"])
 df["close"] = pd.to_numeric(df["close"])
 df["volume"] = pd.to_numeric(df["volume"])
 
+#df = df[(df['date']> "2021-01-01")]
+#df = df.reset_index(drop=True)
+
 # Calcular a média móvel do volume.
 
 volume_moving_average = []
@@ -66,82 +75,12 @@ for i, session in df.iterrows():
 
     volume_moving_average.append(s / d)
 
-# Descobrir retângulos.
+# ...
 
-rectangles = []
-
-for i, session in df.iterrows():
-
-    hits_threshold = 3
-    diff_threshold = 0.0075
-    wave_threshold = 0.01
-
-    support_hits = 1
-    resistance_hits = 1
-
-    support_lock = True
-    resistance_lock = True
-
-    support = session['low']
-    resistance = session['high']
-
-    for j, next_session in df.iloc[(i+1):].iterrows():
-
-        low = next_session['low']
-        high = next_session['high']
-        close = next_session['close']
-
-        support_top_margin = support * (1 + diff_threshold)
-        support_bottom_margin = support * (1 - diff_threshold)
-
-        resistance_top_margin = resistance * (1 + diff_threshold)
-        resistance_bottom_margin = resistance * (1 - diff_threshold)
-
-        if low > support_bottom_margin and low < support_top_margin and support_lock == False:
-
-            support_hits += 1
-            support_lock = True
-
-        elif low > (support_top_margin * (1 + wave_threshold)):
-
-            support_lock = False
-
-        elif low < support_bottom_margin:
-
-            if resistance_hits >= hits_threshold and support_hits >= hits_threshold:
-
-                fst_high = df.iloc[i]['high']
-
-                if fst_high > resistance_bottom_margin and close < support_bottom_margin:
-
-                    rectangles.append([i, j, support, resistance])
-
-            support_hits = 1
-            support_lock = True
-            support = low
-
-        if high > resistance_bottom_margin and high < resistance_top_margin and resistance_lock == False:
-
-            resistance_hits += 1
-            resistance_lock = True
-
-        elif high < (resistance_bottom_margin * (1 - wave_threshold)):
-
-            resistance_lock = False
-
-        elif high > resistance_top_margin:
-
-            if resistance_hits >= hits_threshold and support_hits >= hits_threshold:
-
-                fst_low = df.iloc[i]['low']
-
-                if fst_low < support_top_margin and close > resistance_top_margin:
-
-                    rectangles.append([i, j, support, resistance])
-
-            resistance_hits = 1
-            resistance_lock = True
-            resistance = high
+trades_log_path = output_path + ticker + '.json'
+trades_file = open(trades_log_path, 'r')
+rectangles = json.load(trades_file)
+trades_file.close()
 
 # ...
 
@@ -241,13 +180,12 @@ for r in rectangles:
 
     vol_ax.plot(x, clipped_volume_moving_average, linewidth=1, color='orange')
 
-    #plt.yticks(volume_y_ticks[1:-1], volume_y_labels[1:-1])
-    #plt.ylim(0, max_volume)
+    plt.yticks(volume_y_ticks[1:-1], volume_y_labels[1:-1])
+    plt.ylim(0, max_volume)
 
     pri_ax.plot([new_r_i-0.5, new_r_j+0.5], [r[2], r[2]], color='black')
     pri_ax.plot([new_r_i-0.5, new_r_j+0.5], [r[3], r[3]], color='black')
     pri_ax.plot([new_r_i-0.5, new_r_i-0.5], [r[2], r[3]], color='black')
     pri_ax.plot([new_r_j+0.5, new_r_j+0.5], [r[2], r[3]], color='black')
 
-    #plt.draw()
     plt.show()
